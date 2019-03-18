@@ -7,6 +7,9 @@
 #include <stdarg.h>
 
 int getCPUtimes(pcb *p, processStatuses *ps);
+void sys_sighandler(pcb *p);
+void sys_syssigreturn(pcb *p);
+int isValidAddress(unsigned int addr);
 
 static int  kill(pcb *currP, int pid);
 
@@ -16,72 +19,78 @@ static pcb      *tail = NULL;
 void     dispatch( void ) {
 /********************************/
 
-    pcb         *p;
-    int         r;
-    funcptr     fp;
-    int         stack;
-    va_list     ap;
-    char        *str;
-    int         len;
+    pcb *p;
+    int r;
+    funcptr fp;
+    int stack;
+    va_list ap;
+    char *str;
+    int len;
 
-    for( p = next(); p; ) {
-      //      kprintf("Process %x selected stck %x\n", p, p->esp);
+    for (p = next(); p;) {
+        //      kprintf("Process %x selected stck %x\n", p, p->esp);
 
-      r = contextswitch( p );
-      switch( r ) {
-      case( SYS_CREATE ):
-        ap = (va_list)p->args;
-        fp = (funcptr)(va_arg( ap, int ) );
-        stack = va_arg( ap, int );
-	p->ret = create( fp, stack );
-        break;
-      case( SYS_YIELD ):
-        ready( p );
-        p = next();
-        break;
-      case( SYS_STOP ):
-        p->state = STATE_STOPPED;
-        p = next();
-        break;
-      case ( SYS_KILL ):
-        ap = (va_list)p->args;
-	p->ret = kill(p, va_arg( ap, int ) );
-	break;
-      case (SYS_CPUTIMES):
-	ap = (va_list) p->args;
-	p->ret = getCPUtimes(p, va_arg(ap, processStatuses *));
-	break;
-      case( SYS_PUTS ):
-	  ap = (va_list)p->args;
-	  str = va_arg( ap, char * );
-	  kprintf( "%s", str );
-	  p->ret = 0;
-	  break;
-      case( SYS_GETPID ):
-	p->ret = p->pid;
-	break;
-      case( SYS_SLEEP ):
-	ap = (va_list)p->args;
-	len = va_arg( ap, int );
-	sleep( p, len );
-	p = next();
-	break;
-      case( SYS_TIMER ):
-	tick();
-	//kprintf("T");
-	p->cpuTime++;
-	ready( p );
-	p = next();
-	end_of_intr();
-	break;
-      default:
-        kprintf( "Bad Sys request %d, pid = %d\n", r, p->pid );
-      }
+        r = contextswitch(p);
+        switch (r) {
+            case (SYS_CREATE):
+                ap = (va_list) p->args;
+                fp = (funcptr)(va_arg(ap, int));
+                stack = va_arg(ap, int);
+                p->ret = create(fp, stack);
+                break;
+            case (SYS_YIELD):
+                ready(p);
+                p = next();
+                break;
+            case (SYS_STOP):
+                p->state = STATE_STOPPED;
+                p = next();
+                break;
+            case (SYS_KILL):
+                ap = (va_list) p->args;
+                p->ret = kill(p, va_arg(ap, int));
+                break;
+            case (SYS_CPUTIMES):
+                ap = (va_list) p->args;
+                p->ret = getCPUtimes(p, va_arg(ap, processStatuses * ));
+                break;
+            case (SYS_PUTS):
+                ap = (va_list) p->args;
+                str = va_arg(ap, char * );
+                kprintf("%s", str);
+                p->ret = 0;
+                break;
+            case (SYS_GETPID):
+                p->ret = p->pid;
+                break;
+            case (SYS_SLEEP):
+                ap = (va_list) p->args;
+                len = va_arg(ap, int);
+                sleep(p, len);
+                p = next();
+                break;
+            case (SYS_TIMER):
+                tick();
+                //kprintf("T");
+                p->cpuTime++;
+                ready(p);
+                p = next();
+                end_of_intr();
+                break;
+            case (SYS_SIGHANDLER):
+                sys_sighandler(p);
+                break;
+            case(SYS_SIGRETURN):
+                sys_syssigreturn(p);
+                break;
+            default:
+                kprintf("Bad Sys request %d, pid = %d\n", r, p->pid);
+        }
     }
 
-    kprintf( "Out of processes: dying\n" );
-    
-    for( ;; );
+    kprintf("Out of processes: dying\n");
+
+    for (;;);
 }
 
 extern void dispatchinit( void ) {
@@ -297,4 +306,37 @@ int getCPUtimes(pcb *p, processStatuses *ps) {
   }
 
   return currentSlot;
+}
+
+int isValidAddress(unsigned int addr){
+    if(addr >= HOLESTART && addr <= HOLEEND){
+        return FALSE;
+    } else if(addr > (int) maxaddr){
+        return FALSE;
+    }
+    return TRUE;
+}
+
+void sys_sighandler(pcb *p){
+    va_list ap = (va_list) p->args;
+    int signal = va_arg( ap, int);
+    void *newhandler = va_arg( ap, void*);
+    void **oldHandler = va_arg( ap, void**);
+
+    if(signal >= MAX_SIG){
+        p->ret = INVALID_SIGNAL;
+    } else if(!isValidAddress((unsigned int) newhandler)){
+        p->ret = INVALID_NEW_HANDLER;
+    } else if(!isValidAddress((unsigned int) *oldHandler)){
+        p->ret = INVALID_OLD_HANDLER;
+    }
+
+}
+
+void sys_syssigreturn(pcb *p){
+    va_list ap = (va_list) p->args;
+    void *old_sp = va_arg( ap, void*);
+
+    p->ret = *(((unsigned long *)old_sp) - sizeof(int));
+    p->esp = old_sp;
 }

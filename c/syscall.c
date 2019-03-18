@@ -71,3 +71,12 @@ int syskill(int pid) {
 int sysgetcputimes(processStatuses *ps) {
   return syscall(SYS_CPUTIMES, ps);
 }
+
+int syssighandler(int signal, void (*newhandler)(void *), void (** oldHandler)(void *)){
+    return syscall(SYS_SIGHANDLER, signal, newhandler, oldHandler);
+}
+
+void syssigreturn(void *old_sp){
+    syscall(SYS_SIGRETURN, old_sp);
+}
+

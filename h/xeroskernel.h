@@ -75,6 +75,15 @@ void           outb(unsigned int, unsigned char);
 #define SYS_SLEEP       166
 #define SYS_KILL        177
 #define SYS_CPUTIMES    178
+#define SYS_SIGHANDLER  179
+#define SYS_SIGRETURN   180
+
+#define MAX_SIG 32
+#define INVALID_SIGNAL -1
+#define INVALID_NEW_HANDLER -2
+#define INVALID_OLD_HANDLER -3
+#define SIGNAL_INSTALL_SUCCESS 0
+
 
 /* Structure to track the information associated with a single process */
 
@@ -167,6 +176,8 @@ unsigned int syssleep(unsigned int);
 void     sysputs(char *str);
 int syskill(int);
 int sysgetcputimes(processStatuses *ps);
+int syssighandler(int signal, void (*newhandler)(void *), void (** oldHandler)(void *));
+void syssigreturn(void *old_sp);
 
 /* The initial process that the system creates and schedules */
 void     root( void );
