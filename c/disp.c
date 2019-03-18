@@ -7,6 +7,16 @@
 #include <stdarg.h>
 
 int getCPUtimes(pcb *p, processStatuses *ps);
+void sys_sighandler(pcb *p);
+void sys_sigreturn(pcb *p);
+
+
+void sys_sigkill(pcb *p);
+pcb *sys_sigwait(pcb *p);
+pcb *get_process(int pid);
+void free_dependent_processes(pcb *p);
+
+int isValidAddress(unsigned int addr);
 
 static int  kill(pcb *currP, int pid);
 
@@ -16,72 +26,85 @@ static pcb      *tail = NULL;
 void     dispatch( void ) {
 /********************************/
 
-    pcb         *p;
-    int         r;
-    funcptr     fp;
-    int         stack;
-    va_list     ap;
-    char        *str;
-    int         len;
+    pcb *p;
+    int r;
+    funcptr fp;
+    int stack;
+    va_list ap;
+    char *str;
+    int len;
 
-    for( p = next(); p; ) {
-      //      kprintf("Process %x selected stck %x\n", p, p->esp);
+    for (p = next(); p;) {
+        //      kprintf("Process %x selected stck %x\n", p, p->esp);
 
-      r = contextswitch( p );
-      switch( r ) {
-      case( SYS_CREATE ):
-        ap = (va_list)p->args;
-        fp = (funcptr)(va_arg( ap, int ) );
-        stack = va_arg( ap, int );
-	p->ret = create( fp, stack );
-        break;
-      case( SYS_YIELD ):
-        ready( p );
-        p = next();
-        break;
-      case( SYS_STOP ):
-        p->state = STATE_STOPPED;
-        p = next();
-        break;
-      case ( SYS_KILL ):
-        ap = (va_list)p->args;
-	p->ret = kill(p, va_arg( ap, int ) );
-	break;
-      case (SYS_CPUTIMES):
-	ap = (va_list) p->args;
-	p->ret = getCPUtimes(p, va_arg(ap, processStatuses *));
-	break;
-      case( SYS_PUTS ):
-	  ap = (va_list)p->args;
-	  str = va_arg( ap, char * );
-	  kprintf( "%s", str );
-	  p->ret = 0;
-	  break;
-      case( SYS_GETPID ):
-	p->ret = p->pid;
-	break;
-      case( SYS_SLEEP ):
-	ap = (va_list)p->args;
-	len = va_arg( ap, int );
-	sleep( p, len );
-	p = next();
-	break;
-      case( SYS_TIMER ):
-	tick();
-	//kprintf("T");
-	p->cpuTime++;
-	ready( p );
-	p = next();
-	end_of_intr();
-	break;
-      default:
-        kprintf( "Bad Sys request %d, pid = %d\n", r, p->pid );
-      }
+        signal(p);
+        r = contextswitch(p);
+        switch (r) {
+            case (SYS_CREATE):
+                ap = (va_list) p->args;
+                fp = (funcptr)(va_arg(ap, int));
+                stack = va_arg(ap, int);
+                p->ret = create(fp, stack);
+                break;
+            case (SYS_YIELD):
+                ready(p);
+                p = next();
+                break;
+            case (SYS_STOP):
+                p->state = STATE_STOPPED;
+                p = next();
+                break;
+            case (SYS_KILL):
+                ap = (va_list) p->args;
+                p->ret = kill(p, va_arg(ap, int));
+                break;
+            case (SYS_CPUTIMES):
+                ap = (va_list) p->args;
+                p->ret = getCPUtimes(p, va_arg(ap, processStatuses * ));
+                break;
+            case (SYS_PUTS):
+                ap = (va_list) p->args;
+                str = va_arg(ap, char * );
+                kprintf("%s", str);
+                p->ret = 0;
+                break;
+            case (SYS_GETPID):
+                p->ret = p->pid;
+                break;
+            case (SYS_SLEEP):
+                ap = (va_list) p->args;
+                len = va_arg(ap, int);
+                sleep(p, len);
+                p = next();
+                break;
+            case (SYS_TIMER):
+                tick();
+                //kprintf("T");
+                p->cpuTime++;
+                ready(p);
+                p = next();
+                end_of_intr();
+                break;
+            case (SYS_SIGHANDLER):
+                sys_sighandler(p);
+                break;
+            case(SYS_SIGRETURN):
+                sys_sigreturn(p);
+                break;
+            case (SYS_SIGKILL):
+                sys_sigkill(p);
+                break;
+            case(SYS_SIGWAIT):
+                p = sys_sigwait(p);
+                break;
+            default:
+                kprintf("Bad Sys request %d, pid = %d\n", r, p->pid);
+        }
     }
 
-    kprintf( "Out of processes: dying\n" );
-    
-    for( ;; );
+    kprintf("Out of processes: dying\n");
+
+    for (;;);
 }
 
 extern void dispatchinit( void ) {
@@ -151,9 +174,7 @@ extern pcb *findPCB( int pid ) {
 // A similar function exists for the management of the sleep Q. Things should be re-factored to 
 // eliminate the duplication of code if possible. There are some challenges to that because
 // the sleepQ is a delta list and something more than just removing an element in a list
-// is being preformed. 
-
-
+// is being preformed.
 void removeFromReady(pcb * p) {
 
   if (!head) {
@@ -249,7 +270,7 @@ static int  kill(pcb *currP, int pid) {
     // kprintf("Target pid %d is ready\n", targetPCB->pid);
     removeFromReady(targetPCB);
   }
-
+  free_dependent_processes(targetPCB);
   // Check other states and do state specific cleanup before stopping
   // the process 
   // In the new version the process will not be marked as stopped but be 
@@ -257,6 +278,26 @@ static int  kill(pcb *currP, int pid) {
 
   targetPCB->state = STATE_STOPPED;
   return 0;
+}
+
+void free_dependent_processes(pcb *p){
+    int i;
+    for( i = 1; i < MAX_PROC; i++ ) {
+        va_list ap = (va_list) proctab[i].args;
+        int *c_pid = va_arg(ap, int*);
+        int pid;
+        if(isValidAddress((unsigned int) c_pid)){
+            pid = *c_pid;
+        } else{
+            pid = (int) c_pid;
+        }
+
+        if( pid == p->pid && proctab[i].state == STATE_BLOCKED) {
+            proctab[i].ret = -1;
+            proctab[i].state = STATE_READY;
+            ready(&proctab[i]);
+        }
+    }
 }
   
 
@@ -267,7 +308,6 @@ static int  kill(pcb *currP, int pid) {
 //  ps  - a pointer to a processStatuses structure that is 
 //        filled with information about all the processes currently in the system
 //
-
 extern char * maxaddr;
   
 int getCPUtimes(pcb *p, processStatuses *ps) {
@@ -284,8 +324,6 @@ int getCPUtimes(pcb *p, processStatuses *ps) {
     return -2;
 
   // There are probably other address checks that can be done, but this is OK for now
-
-
   for (i=0; i < MAX_PROC; i++) {
     if (proctab[i].state != STATE_STOPPED) {
       // fill in the table entry
@@ -297,4 +335,112 @@ int getCPUtimes(pcb *p, processStatuses *ps) {
   }
 
   return currentSlot;
+}
+
+int isValidAddress(unsigned int addr){
+    if((addr >= HOLESTART && addr <= HOLEEND) || (addr > (int) maxaddr)){
+        return FALSE;
+    } else{
+        return TRUE;
+    }
+}
+
+void sys_sighandler(pcb *p){
+    va_list ap = (va_list) p->args;
+    int signum = va_arg( ap, int);
+    void *newhandler = va_arg( ap, void*);
+    void **oldHandler = va_arg( ap, void**);
+
+    // signal MAX_SIG -1 is reserved
+    if(signum < 0 || signum >= MAX_SIG-1){
+        p->ret = SIGHANDLER_INVALID_SIGNUM;
+        return;
+    } else if(!isValidAddress((unsigned int) newhandler)){
+        p->ret = SIGHANDLER_INVALID_NEW_HANDLER;
+        return;
+    } else if(!isValidAddress((unsigned int) oldHandler)){
+        p->ret = SIGHANDLER_INVALID_OLD_HANDLER;
+        return;
+    }
+
+    *oldHandler = p->signal_table[signum];
+    p->signal_table[signum] = newhandler;
+    p->ret = SIGHANDLER_SIGNAL_INSTALL_SUCCESS;
+}
+
+void sys_sigreturn(pcb *p){
+    va_list ap = (va_list) p->args;
+    void *old_sp = va_arg( ap, void*);
+    p->esp = old_sp;
+
+    //print_signal_status(p);
+    // unmask signals
+    int i = 0;
+    int signum = *(((int *)old_sp) - 1);
+    signum = signum == -1 ? 0 : signum;
+    for(i = signum ; i < MAX_SIG; i++){
+        p->signal_mask[i] = 0;
+    }
+}
+
+void sys_sigkill(pcb *p){
+    va_list ap = (va_list) p->args;
+    int pid = va_arg( ap, int);
+    int signum =  va_arg( ap, int);
+
+    pcb *target_process = findPCB(pid);
+    if(target_process == NULL){
+        p->ret = SIGKILL_INVALID_PID;
+        return;
+    } else if(signum < 0 || signum >= MAX_SIG){
+        p->ret = SIGKILL_INVALID_SIGNUM;
+        return;
+    }
+
+    // if signal handler is null ignore signal
+    if(target_process->signal_table[signum] != NULL){
+        target_process->pending_signals[signum] = TRUE;
+        if(target_process->state == STATE_BLOCKED){
+            target_process->state = STATE_READY;
+            target_process->ret = SIGNAL_INTERRUPT;
+            ready(target_process);
+        }
+    }
+    p->ret = SIGKILL_SUCCESS;
+}
+
+
+pcb *sys_sigwait(pcb *p){
+    va_list ap = (va_list) p->args;
+    int pid = va_arg( ap, int);
+
+    pcb *target_process = findPCB(pid);
+    if(target_process == NULL || target_process->pid == 0){
+        p->ret = SYSWAIT_INVALID_PID;
+    }
+    p->state = STATE_BLOCKED;
+    p->ret = SYSWAIT_SUCCESS;
+    return next();
+}
+
+void print_signal_status(pcb *p){
+    int i;
+    kprintf("pending signals: \n");
+    for(i = 0 ; i < MAX_SIG ; i++){
+        kprintf("%d", i);
+    }
+    kprintf("\n");
+    for(i = 0 ; i < MAX_SIG ; i++){
+        kprintf("%d", p->pending_signals[i]);
+    }
+    kprintf("\n");
+    kprintf("signal mask: \n");
+    for(i = 0 ; i < MAX_SIG ; i++){
+        kprintf("%d", i);
+    }
+    kprintf("\n");
+    for(i = 0 ; i < MAX_SIG ; i++){
+        kprintf("%d", p->signal_mask[i]);
+    }
+    kprintf("\n");
 }

@@ -62,6 +62,9 @@ void           outb(unsigned int, unsigned char);
 /* Constants to track states that a process is in */
 #define STATE_STOPPED   0
 #define STATE_READY     1
+#define STATE_BLOCKED   2
+#define STATE_WAITING   3
+
 #define STATE_SLEEP     22
 #define STATE_RUNNING   23
 
@@ -75,6 +78,32 @@ void           outb(unsigned int, unsigned char);
 #define SYS_SLEEP       166
 #define SYS_KILL        177
 #define SYS_CPUTIMES    178
+#define SYS_SIGHANDLER  179
+#define SYS_SIGRETURN   180
+#define SYS_SIGKILL     181
+#define SYS_SIGWAIT     182
+
+
+
+#define MAX_SIG 32
+
+// syssighandler return codes
+#define SIGHANDLER_INVALID_SIGNUM          -1
+#define SIGHANDLER_INVALID_NEW_HANDLER     -2
+#define SIGHANDLER_INVALID_OLD_HANDLER     -3
+#define SIGHANDLER_SIGNAL_INSTALL_SUCCESS   0
+
+// sigkill return codes
+#define SIGKILL_INVALID_PID     -514
+#define SIGKILL_INVALID_SIGNUM  -583
+#define SIGKILL_SUCCESS          0
+
+// syswait return code
+#define SYSWAIT_INVALID_PID     -1
+#define SYSWAIT_SUCCESS          0
+
+// signal interrupt code
+#define SIGNAL_INTERRUPT        -666
 
 /* Structure to track the information associated with a single process */
 
@@ -90,6 +119,11 @@ struct struct_pcb {
                        /* call                                    */
   long         args;   
   unsigned int otherpid;
+
+  void        *signal_table[MAX_SIG];
+  int         pending_signals[MAX_SIG];
+  int         signal_mask[MAX_SIG];
+
   void        *buffer;
   int          bufferlen;
   int          sleepdiff;
@@ -165,12 +199,25 @@ void         sysstop( void );
 unsigned int sysgetpid( void );
 unsigned int syssleep(unsigned int);
 void     sysputs(char *str);
-int syskill(int);
+
+
 int sysgetcputimes(processStatuses *ps);
+int syssighandler(int signal, void (*newhandler)(void *), void (** oldHandler)(void *));
+void syssigreturn(void *old_sp);
+int syskill(int PID, int signalNumber);
+int syswait(int PID);
+
+
+void sigtramp(void (*handler)(void *), void *cntx);
+void signal(pcb *p);
+void print_signal_status(pcb *p);
+
 
 /* The initial process that the system creates and schedules */
 void     root( void );
-
+void     test_syssighandler(void);
+void     test_syskill1(void);
+void     test_signal_priority(void);
 
 
 
