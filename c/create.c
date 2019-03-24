@@ -88,6 +88,18 @@ int create( funcptr fp, size_t stackSize ) {
     p->state = STATE_READY;
     p->pid = nextpid++;
     p->cpuTime = 0;
+
+
+    // set init signal stable and signal state
+    for(i = 0 ; i < MAX_SIG ; i++){
+        p->signal_table[i] = NULL;
+        p->pending_signals[i] = 0;
+        p->signal_mask[i] = 0;
+    }
+
+    // special signal handler sysstop for signal number 31
+    p->signal_table[MAX_SIG-1] = (int) sysstop;
+
     ready( p );
     return p->pid;
 }

@@ -48,6 +48,8 @@ void initproc( void )				/* The beginning */
   /* Your code goes here */
   
   kprintf("Max addr is %d %x\n", maxaddr, maxaddr);
+  kprintf("HOLESTART %d %x\n", HOLESTART, HOLESTART);
+  kprintf("HOLEEND %d %x\n", HOLEEND, HOLEEND);
   
   kmeminit();
   kprintf("memory inited\n");
@@ -73,7 +75,7 @@ void initproc( void )				/* The beginning */
 
   create(idleproc, PROC_STACK);
   
-  create( root, PROC_STACK );
+  create( test_syskill1, PROC_STACK );
   kprintf("create inited\n");
   
   dispatch();

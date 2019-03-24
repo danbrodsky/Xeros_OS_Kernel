@@ -42,7 +42,6 @@ void sysyield( void ) {
 
  void sysstop( void ) {
 /**************************/
-
    syscall( SYS_STOP );
 }
 
@@ -64,9 +63,11 @@ unsigned int syssleep( unsigned int t ) {
     return syscall( SYS_SLEEP, t );
 }
 
+/*
 int syskill(int pid) {
   return syscall(SYS_KILL, pid);
 }
+ */
 
 int sysgetcputimes(processStatuses *ps) {
   return syscall(SYS_CPUTIMES, ps);
@@ -78,5 +79,13 @@ int syssighandler(int signal, void (*newhandler)(void *), void (** oldHandler)(v
 
 void syssigreturn(void *old_sp){
     syscall(SYS_SIGRETURN, old_sp);
+}
+
+int syskill(int PID, int signalNumber){
+    syscall(SYS_SIGKILL, PID, signalNumber);
+}
+
+int syswait(int PID){
+    syscall(SYS_SIGWAIT, PID);
 }
 

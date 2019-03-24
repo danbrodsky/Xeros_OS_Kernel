@@ -4,6 +4,13 @@
 #include <xeroskernel.h>
 #include <xeroslib.h>
 
+extern char	*maxaddr;
+void *handler_sig8(void *cntx);
+void *handler_sig30(void *cntx);
+void *handler_sig0(void *cntx);
+void test_process();
+
+/*
 void busy( void ) {
   int myPid;
   char buff[100];
@@ -63,6 +70,7 @@ void sleep3( void ) {
   sysputs(buff);
 }
 
+ */
 
 
 
@@ -70,8 +78,8 @@ void sleep3( void ) {
 
 
 
+/*
 void producer( void ) {
-/****************************/
 
     int         i;
     char        buff[100];
@@ -98,7 +106,6 @@ void producer( void ) {
 }
 
 void consumer( void ) {
-/****************************/
 
     int         i;
     char        buff[100];
@@ -123,7 +130,6 @@ void consumer( void ) {
 }
 
 void     root( void ) {
-/****************************/
 
     char  buff[100];
     int pids[5];
@@ -269,4 +275,178 @@ void     root( void ) {
     }
     
 }
+
+ */
+
+
+void test_syssighandler(){
+    int sig8 = 8;
+    int sig30 = 30;
+
+    void *handler = &handler_sig8;
+    int ret_val = syssighandler(-1 , &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_INVALID_SIGNUM){
+        kprintf("test SIGHANDLER_INVALID_SIGNUM 1 fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(MAX_SIG + 1 , &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_INVALID_SIGNUM){
+        kprintf("test SIGHANDLER_INVALID_SIGNUM 2 fail\n");
+        while(1);
+    }
+
+
+    ret_val = syssighandler(sig8, maxaddr + 1, &handler);
+    if(ret_val != SIGHANDLER_INVALID_NEW_HANDLER){
+        kprintf("test SIGHANDLER_INVALID_NEW_HANDLER fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig8, &handler_sig8, maxaddr +1);
+    if(ret_val != SIGHANDLER_INVALID_OLD_HANDLER){
+        kprintf("test SIGHANDLER_INVALID_OLD_HANDLER fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig8, &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS fail\n");
+        while(1);
+    }
+
+    kprintf("all test_syssighandler test cases passed...\n");
+    while(1);
+}
+
+void test_syskill1(){
+    int sig8 = 8;
+    int sig30 = 30;
+    int pid1 = 1;
+    void *handler;
+    int ret_val = syssighandler(sig8, &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig30, &handler_sig30, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS fail\n");
+        while(1);
+    }
+
+    ret_val = syskill(4, sig8);
+    if(ret_val != SIGKILL_INVALID_PID){
+        kprintf("test SIGKILL_INVALID_PID1 fail\n");
+        while(1);
+    }
+
+    ret_val = syskill(pid1, -1);
+    if(ret_val != SIGKILL_INVALID_SIGNUM){
+        kprintf("test SIGKILL_INVALID_SIGNUM1 fail\n");
+        while(1);
+    }
+
+    ret_val = syskill(pid1, MAX_SIG);
+    if(ret_val != SIGKILL_INVALID_SIGNUM){
+        kprintf("test SIGKILL_INVALID_SIGNUM2 fail\n");
+        while(1);
+    }
+
+    ret_val = syskill(pid1, sig8);
+    if(ret_val != SIGKILL_SUCCESS){
+        kprintf("test SIGKILL_SUCCESS fail1\n");
+        while(1);
+    }
+
+    ret_val = syskill(pid1, sig30);
+    if(ret_val != SIGKILL_SUCCESS){
+        kprintf("test SIGKILL_SUCCESS fail2\n");
+        while(1);
+    }
+
+    kprintf("all test_syskill1 test cases passed...\n");
+    while(1);
+}
+
+void test_signal_priority(){
+    int sig8  = 8;
+    int sig30 = 30;
+    int sig0  = 0;
+
+    int pid1 = 1;
+    int pid2 =  syscreate( &test_process, 4096 );
+    syssleep(500);
+
+    void *handler;
+    int ret_val = syskill(pid2, sig8);
+    if(ret_val != SIGKILL_SUCCESS){
+        kprintf("test SIGKILL_SUCCESS fail1\n");
+        while(1);
+    }
+
+
+    ret_val = syskill(pid2, sig0);
+    if(ret_val != SIGKILL_SUCCESS){
+        kprintf("test SIGKILL_SUCCESS fail2\n");
+        while(1);
+    }
+
+    ret_val = syskill(pid2, sig30);
+    if(ret_val != SIGKILL_SUCCESS){
+        kprintf("test SIGKILL_SUCCESS fail3\n");
+        while(1);
+    }
+
+    kprintf("all test_signal_priority test cases passed...\n");
+    while(1){
+        sysyield();
+    }
+}
+
+void test_process(){
+    int sig8  = 8;
+    int sig30 = 30;
+    int sig0  = 0;
+
+    void *handler;
+    int ret_val = syssighandler(sig8, &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS1 fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig30, &handler_sig30, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS2 fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig0, &handler_sig0, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS3 fail\n");
+        while(1);
+    }
+
+    ret_val = syswait(1);
+    if(ret_val != SIGNAL_INTERRUPT){
+        kprintf("test SIGNAL_INTERRUPT fail\n");
+        while(1);
+    }
+    while(1);
+}
+
+void *handler_sig8(void *cntx){
+    kprintf("signal 8 executed\n");
+}
+
+void *handler_sig30(void *cntx){
+    kprintf("signal 30 executed\n");
+}
+
+void *handler_sig0(void *cntx){
+    kprintf("signal 0 executed\n");
+}
+
 
