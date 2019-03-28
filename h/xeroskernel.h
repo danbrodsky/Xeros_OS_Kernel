@@ -110,6 +110,41 @@ void           outb(unsigned int, unsigned char);
 // signal interrupt code
 #define SIGNAL_INTERRUPT        -666
 
+/* Device section */
+
+
+/* maximum number of devices */
+#define MAX_DEV 32
+#define MAX_PROC_DEV 4
+
+/* struct for device information */
+typedef struct struct_device device;
+
+struct struct_device {
+    int dvnum;
+    char *dvname;
+    int (*dvinit)(void);
+    int (*dvopen)(void);
+    int (*dvclose)(void);
+    int (*dvread)(void* buff, int bufflen);
+    int (*dvwrite)(void* buff, int bufflen);
+    int (*dvseek)(void);
+    int (*dvgetc)(void);
+    int (*dvputc)(void);
+    int (*dvcntl)(void);
+    void *dvcsr;
+    void *dvivec;
+    void *dvovec;
+    int (*dviint)(void);
+    int (*dvoint)(void);
+    void *dvioblk;
+    int dvminor;
+    
+};
+
+/* table for storing device information */
+device devtab[MAX_DEV];
+
 /* Structure to track the information associated with a single process */
 
 typedef struct struct_pcb pcb;
@@ -133,6 +168,7 @@ struct struct_pcb {
   int          bufferlen;
   int          sleepdiff;
   long         cpuTime;  /* CPU time consumed                     */
+  device*      fdt[MAX_PROC_DEV];
 };
 
 
@@ -166,21 +202,6 @@ typedef struct context_frame {
   unsigned long        stackSlots[];
 } context_frame;
 
-/* Device section */
-
-
-/* maximum number of devices */
-#define MAX_DEV 32
-
-/* struct for device information */
-typedef struct struct_device device;
-
-struct struct_device {
-    
-};
-
-/* table for storing device information */
-device devtab[MAX_DEV];
 
 
 /* Memory mangement system functions, it is OK for user level   */
