@@ -89,3 +89,22 @@ int syswait(int PID){
     syscall(SYS_SIGWAIT, PID);
 }
 
+int sysopen(int device_no) {
+    syscall(SYS_OPEN, device_no);
+}
+
+int sysclose(int fd){
+    syscall(SYS_CLOSE, fd);
+}
+
+int syswrite(int fd, void *buff, int bufflen) {
+    syscall(SYS_WRITE, fd, buff, bufflen);
+}
+
+int sysread(int fd, void *buff, int bufflen) {
+    syscall(SYS_READ, fd, buff, bufflen);
+}
+
+int sysioctl(int fd, unsigned long command, ...) {
+    syscall(SYS_IOCTL, fd, command, ...);
+}

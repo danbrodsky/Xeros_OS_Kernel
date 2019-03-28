@@ -82,6 +82,11 @@ void           outb(unsigned int, unsigned char);
 #define SYS_SIGRETURN   180
 #define SYS_SIGKILL     181
 #define SYS_SIGWAIT     182
+#define SYS_OPEN        183
+#define SYS_CLOSE       184 
+#define SYS_WRITE       185 
+#define SYS_READ        186 
+#define SYS_IOCTL       187 
 
 
 
@@ -161,6 +166,22 @@ typedef struct context_frame {
   unsigned long        stackSlots[];
 } context_frame;
 
+/* Device section */
+
+
+/* maximum number of devices */
+#define MAX_DEV 32
+
+/* struct for device information */
+typedef struct struct_device device;
+
+struct struct_device {
+    
+};
+
+/* table for storing device information */
+device devtab[MAX_DEV];
+
 
 /* Memory mangement system functions, it is OK for user level   */
 /* processes to call these.                                     */
@@ -219,7 +240,19 @@ void     test_syssighandler(void);
 void     test_syskill1(void);
 void     test_signal_priority(void);
 
+/* additional syscalls */
+extern int sysopen(int device_no);
+extern int sysclose(int fd);
+extern int syswrite(int fd, void *buff, int bufflen);
+extern int sysread(int fd, void *buff, int bufflen);
+extern int sysioctl(int fd, unsigned long command, ...);
 
+/* Device independent calls */
+extern int di_open(int device_no, pcb* p);
+extern int di_close(int fd, pcb* p);
+extern int di_write(int fd, void* buff, int bufflen, pcb* p);
+extern int di_read(int fd, void* buff, int bufflen, pcb* p);
+extern int di_ioctl(int fd, unsigned long command, ..., pcb* p);
 
 void           set_evec(unsigned int xnum, unsigned long handler);
 
