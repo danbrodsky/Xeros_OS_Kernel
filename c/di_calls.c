@@ -17,7 +17,7 @@ int di_open(int device_no, pcb* p) {
         ++slot;
     }
 
-    if ( slot >= MAX_DEV ) {
+    if ( slot >= MAX_PROC_DEV ) {
         // no open slots in fdt, return error
         return SYSERR;
     }
@@ -34,7 +34,7 @@ int di_open(int device_no, pcb* p) {
 
 int di_close(int fd, pcb* p) {
 
-    device* curr_dev = &devtab[fd];
+    device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvclose == NULL || fd >= MAX_DEV ) {
         // device close call does not exist or no fd at this index in proc, return error
@@ -49,7 +49,7 @@ int di_close(int fd, pcb* p) {
 
 int di_write(int fd, void* buff, int bufflen, pcb* p) {
 
-    device* curr_dev = &devtab[fd];
+    device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvwrite == NULL || fd >= MAX_DEV ) {
         // device close call does not exist or no fd at this index in proc, return error
@@ -62,7 +62,7 @@ int di_write(int fd, void* buff, int bufflen, pcb* p) {
 
 int di_read(int fd, void* buff, int bufflen, pcb* p) {
 
-    device* curr_dev = &devtab[fd];
+    device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvread == NULL || fd >= MAX_DEV ) {
         // device close call does not exist or no fd at this index in proc, return error
@@ -75,7 +75,7 @@ int di_read(int fd, void* buff, int bufflen, pcb* p) {
 
 int di_ioctl(int fd, unsigned long command, ..., pcb* p) {
 
-    device* curr_dev = &devtab[fd];
+    device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvioctl == NULL || fd >= MAX_DEV ) {
         // device close call does not exist or no fd at this index in proc, return error
