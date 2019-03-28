@@ -10,7 +10,6 @@ int getCPUtimes(pcb *p, processStatuses *ps);
 void sys_sighandler(pcb *p);
 void sys_sigreturn(pcb *p);
 
-
 void sys_sigkill(pcb *p);
 pcb *sys_sigwait(pcb *p);
 pcb *get_process(int pid);
@@ -33,6 +32,9 @@ void     dispatch( void ) {
     va_list ap;
     char *str;
     int len;
+    fd, bufflen;
+    command;
+    buff;
 
     for (p = next(); p;) {
         //      kprintf("Process %x selected stck %x\n", p, p->esp);
@@ -96,6 +98,36 @@ void     dispatch( void ) {
                 break;
             case(SYS_SIGWAIT):
                 p = sys_sigwait(p);
+                break;
+            case(SYS_OPEN):
+                ap = (va_list) p->args;
+                int device_no = va_arg(ap, int );
+                p->ret = di_open(device_no, p);
+                break;
+            case(SYS_CLOSE):
+                ap = (va_list) p->args;
+                fd = va_arg(ap, int );
+                p->ret = di_close(fd, p);
+                break;
+            case(SYS_WRITE):
+                ap = (va_list) p->args;
+                fd = va_arg(ap, int );
+                buff = va_arg(ap, void* );
+                bufflen = va_arg(ap, int );
+                p->ret = di_write(fd, buff, bufflen, p);
+                break;
+            case(SYS_READ):
+                ap = (va_list) p->args;
+                fd = va_arg(ap, int );
+                buff = va_arg(ap, void* );
+                bufflen = va_arg(ap, int );
+                p->ret = di_read(fd, buff, bufflen, p);
+                break;
+            case(SYS_IOCTL):
+                ap = (va_list) p->args;
+                fd = va_arg(ap, int );
+                command = va_arg(ap, unsigned long );
+                p->ret = di_ioctl(fd, command, ...,  p);
                 break;
             default:
                 kprintf("Bad Sys request %d, pid = %d\n", r, p->pid);
