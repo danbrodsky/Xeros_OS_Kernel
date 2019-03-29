@@ -5,6 +5,7 @@
 #include <i386.h>
 #include <xeroslib.h>
 #include <stdarg.h>
+#include <kbd.h>
 
 int getCPUtimes(pcb *p, processStatuses *ps);
 void sys_sighandler(pcb *p);
@@ -32,12 +33,12 @@ void     dispatch( void ) {
     va_list ap, args;
     char *str;
     int len;
-    fd, bufflen;
-    command;
-    buff;
+    int fd, bufflen, device_no;
+    unsigned long command;
+    void* buff;
 
     for (p = next(); p;) {
-        //      kprintf("Process %x selected stck %x\n", p, p->esp);
+        //kprintf("Process %x selected stck %x\n", p, p->esp);
 
         signal(p);
         r = contextswitch(p);
@@ -87,6 +88,12 @@ void     dispatch( void ) {
                 p = next();
                 end_of_intr();
                 break;
+            case (SYS_KEYBOARD):
+                kbd_inthandler();
+                ready(p);
+                p = next();
+                end_of_intr();
+                break;
             case (SYS_SIGHANDLER):
                 sys_sighandler(p);
                 break;
@@ -101,7 +108,7 @@ void     dispatch( void ) {
                 break;
             case(SYS_OPEN):
                 ap = (va_list) p->args;
-                int device_no = va_arg(ap, int );
+                device_no = va_arg(ap, int );
                 p->ret = di_open(device_no, p);
                 break;
             case(SYS_CLOSE):
@@ -121,6 +128,7 @@ void     dispatch( void ) {
                 fd = va_arg(ap, int );
                 buff = va_arg(ap, void* );
                 bufflen = va_arg(ap, int );
+                kprintf("file descriptor for read: %d\n", fd);
                 p->ret = di_read(fd, buff, bufflen, p);
                 break;
             case(SYS_IOCTL):

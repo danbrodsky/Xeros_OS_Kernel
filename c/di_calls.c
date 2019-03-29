@@ -1,4 +1,5 @@
 #include <xeroskernel.h>
+#include <xeroslib.h>
 #include <stdarg.h>
 
 /* open a device */
@@ -14,7 +15,7 @@ int di_open(int device_no, pcb* p) {
     // find open spot in process FDT
     int slot = 0;
 
-    while (p->fdt != NULL){
+    while (p->fdt[slot] != NULL){
         ++slot;
     }
 
@@ -29,7 +30,7 @@ int di_open(int device_no, pcb* p) {
     // store device pointer in process fdt
     p->fdt[slot] = curr_dev;
 
-    return OK;
+    return device_no;
 }
 
 
@@ -71,7 +72,7 @@ int di_read(int fd, void* buff, int bufflen, pcb* p) {
     }
 
     // call lower half function for read, and return the amount read received
-    return (curr_dev->dvwrite)( buff, bufflen);
+    return (curr_dev->dvread)( buff, bufflen);
 }
 
 int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p) {

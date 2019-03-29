@@ -53,8 +53,11 @@ void           outb(unsigned int, unsigned char);
 #define KERNEL_INT      80
    /* Interrupt number for the timer */
 #define TIMER_INT      (TIMER_IRQ + 32)
+   /* Interrupt number for the keyboard */
+#define KEYBOARD_IRQ 1
+#define KEYBOARD_INT   (KEYBOARD_IRQ + 32)
    /* Minimum size of a stack when a process is created */
-#define PROC_STACK      (4096 * 4)    
+#define PROC_STACK     (4096 * 4)    
               
    /* Number of milliseconds in a tick */
 #define MILLISECONDS_TICK 10        
@@ -74,6 +77,7 @@ void           outb(unsigned int, unsigned char);
 #define SYS_YIELD       11
 #define SYS_CREATE      22
 #define SYS_TIMER       33
+#define SYS_KEYBOARD    34
 #define SYS_GETPID      144
 #define SYS_PUTS        155
 #define SYS_SLEEP       166
@@ -125,9 +129,9 @@ struct struct_device {
     int dvnum;
     char *dvname;
     int (*dvinit)(void);
-    int (*dvopen)(void);
-    int (*dvclose)(void);
-    int (*dvread)(void* buff, int bufflen);
+    void (*dvopen)(void);
+    void (*dvclose)(void);
+    int (*dvread)(char* buff, int bufflen);
     int (*dvwrite)(void* buff, int bufflen);
     int (*dvioctl)(unsigned long command, va_list args);
     int (*dvseek)(void);
@@ -264,18 +268,21 @@ void     test_syskill1(void);
 void     test_signal_priority(void);
 
 /* additional syscalls */
-extern int sysopen(int device_no);
-extern int sysclose(int fd);
-extern int syswrite(int fd, void *buff, int bufflen);
-extern int sysread(int fd, void *buff, int bufflen);
-extern int sysioctl(int fd, unsigned long command, ...);
+int sysopen(int device_no);
+int sysclose(int fd);
+int syswrite(int fd, void *buff, int bufflen);
+int sysread(int fd, void *buff, int bufflen);
+int sysioctl(int fd, unsigned long command, ...);
 
 /* Device independent calls */
-extern int di_open(int device_no, pcb* p);
-extern int di_close(int fd, pcb* p);
-extern int di_write(int fd, void* buff, int bufflen, pcb* p);
-extern int di_read(int fd, void* buff, int bufflen, pcb* p);
-extern int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p);
+int di_open(int device_no, pcb* p);
+int di_close(int fd, pcb* p);
+int di_write(int fd, void* buff, int bufflen, pcb* p);
+int di_read(int fd, void* buff, int bufflen, pcb* p);
+int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p);
+
+/* keyboard handler */
+void kbdinit(void);
 
 void           set_evec(unsigned int xnum, unsigned long handler);
 
