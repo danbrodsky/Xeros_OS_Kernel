@@ -29,7 +29,7 @@ void     dispatch( void ) {
     int r;
     funcptr fp;
     int stack;
-    va_list ap;
+    va_list ap, args;
     char *str;
     int len;
     fd, bufflen;
@@ -127,7 +127,8 @@ void     dispatch( void ) {
                 ap = (va_list) p->args;
                 fd = va_arg(ap, int );
                 command = va_arg(ap, unsigned long );
-                p->ret = di_ioctl(fd, command, ...,  p);
+                args = va_arg(ap, va_list );
+                p->ret = di_ioctl(fd, command, args,  p);
                 break;
             default:
                 kprintf("Bad Sys request %d, pid = %d\n", r, p->pid);

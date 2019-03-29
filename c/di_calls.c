@@ -1,4 +1,5 @@
 #include <xeroskernel.h>
+#include <stdarg.h>
 
 /* open a device */
 int di_open(int device_no, pcb* p) {
@@ -57,7 +58,7 @@ int di_write(int fd, void* buff, int bufflen, pcb* p) {
     }
 
     // call lower half function for write, and return the size written received
-    return (curr_dev->dvwrite)(void* buff, int bufflen);
+    return (curr_dev->dvwrite)( buff, bufflen);
 }
 
 int di_read(int fd, void* buff, int bufflen, pcb* p) {
@@ -70,10 +71,10 @@ int di_read(int fd, void* buff, int bufflen, pcb* p) {
     }
 
     // call lower half function for read, and return the amount read received
-    return (curr_dev->dvwrite)(void* buff, int bufflen);
+    return (curr_dev->dvwrite)( buff, bufflen);
 }
 
-int di_ioctl(int fd, unsigned long command, ..., pcb* p) {
+int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p) {
 
     device* curr_dev = p->fdt[fd];
 
@@ -82,7 +83,7 @@ int di_ioctl(int fd, unsigned long command, ..., pcb* p) {
         return SYSERR;
     }
 
-    // call lower half function for read, and return the amount read received
-    return (curr_dev->dvioctl)(unsigned long command, ...);
+    // call lower half function for ioctl, and returns whether it succeeded
+    return (curr_dev->dvioctl)(command, args);
 }
 

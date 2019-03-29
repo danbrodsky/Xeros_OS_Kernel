@@ -2,6 +2,7 @@
 
 #ifndef XEROSKERNEL_H
 #define XEROSKERNEL_H
+#include <stdarg.h>
 
 /* Symbolic constants used throughout Xinu */
 
@@ -128,6 +129,7 @@ struct struct_device {
     int (*dvclose)(void);
     int (*dvread)(void* buff, int bufflen);
     int (*dvwrite)(void* buff, int bufflen);
+    int (*dvioctl)(unsigned long command, va_list args);
     int (*dvseek)(void);
     int (*dvgetc)(void);
     int (*dvputc)(void);
@@ -273,7 +275,7 @@ extern int di_open(int device_no, pcb* p);
 extern int di_close(int fd, pcb* p);
 extern int di_write(int fd, void* buff, int bufflen, pcb* p);
 extern int di_read(int fd, void* buff, int bufflen, pcb* p);
-extern int di_ioctl(int fd, unsigned long command, ..., pcb* p);
+extern int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p);
 
 void           set_evec(unsigned int xnum, unsigned long handler);
 
