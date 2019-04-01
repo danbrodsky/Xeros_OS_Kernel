@@ -11,6 +11,9 @@ void *handler_sig30(void *cntx);
 void *handler_sig0(void *cntx);
 void test_process();
 
+void a(void);
+void t(void);
+
 /*
 void busy( void ) {
   int myPid;
@@ -450,8 +453,82 @@ void *handler_sig0(void *cntx){
     kprintf("signal 0 executed\n");
 }
 
+void a(void) {
+    sysputs("hi");
+}
+
+void t(void) {
+    sysputs("bye");
+}
 void shell(void) {
-    sysputs("shell opened");
+
+    // TODO: Get return to parent on child death working
+
+    // array for remembering process ids
+    int proc_ids[MAX_PROC];
+
+    while(1) {
+        // open keyboard
+        int fd = sysopen(0);
+
+        // open keyboard
+        sysioctl(fd, CTL_ECHO_ON);
+
+        sysputs("> ");
+
+        unsigned char command[20] = "";
+        int written = sysread(fd, &command, 20);
+
+        int background = 0;
+
+        // check if & at end
+        if (*(command+written-1) == '&') {
+            background = 1;
+        }
+
+        // eof key pressed
+        if (written == 0) {
+            sysclose(fd);
+            break;
+        }
+        // TODO: implement ps
+        else if (!strcmp(command, "ps\n")) {
+            // list active processes
+            sysputs("Name        Status        Duration\n");
+        }
+        // exit shell
+        else if (!strcmp(command, "ex\n") || !strcmp(command, "ex&\n")) {
+            sysclose(fd);
+            break;
+        }
+
+        // kill process
+        else if (!strncmp(command, "k\n", 2)) {
+            // call syskill on the target process
+            // TODO: check if this is a proper signal number for syskill
+
+            int result = syskill( atoi(command + 2), 0);
+            if (result != 0)
+                sysputs("No such process\n");
+        }
+        else if (!strncmp(command, "k&\n", 3)) {
+            // call syskill on the target process
+            int result = syskill( atoi(command + 3), 0);
+            if (result != 0)
+                sysputs("No such process\n");
+        }
+
+        // TODO: implement a
+        else if (!strcmp(command, "a\n")) {
+            int pid = syscreate(&a, PROC_STACK);
+            syswait(pid);
+        }
+        // TODO: implement t
+        else if (!strcmp(command, "t\n")) {
+            int pid = syscreate(&t, PROC_STACK);
+            syswait(pid);
+        }
+    }
 }
 
 
