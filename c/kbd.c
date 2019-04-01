@@ -22,6 +22,9 @@ static int size = 0;
 /* keyboard buffer */
 static char kbdbuffer[MAX_BUFF_SIZE];
 
+/* current process receiving keyboard inputs (if any) */
+static receiving_proc rp;
+
 /*  Normal table to translate scan code  */
 unsigned char   kbcode[] = { 0,
           27,  '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',  '9',
@@ -66,7 +69,7 @@ unsigned int kbtoa( unsigned char code )
       state &= ~INSHIFT;
       break;
     case CAPSL:
-      kprintf("Capslock off detected\n");
+      //kprintf("Capslock off detected\n");
       state &= ~CAPSLOCK;
       break;
     case LCTL:
@@ -86,11 +89,11 @@ unsigned int kbtoa( unsigned char code )
   case LSHIFT:
   case RSHIFT:
     state |= INSHIFT;
-    kprintf("shift detected!\n");
+    //kprintf("shift detected!\n");
     return NOCHAR;
   case CAPSL:
     state |= CAPSLOCK;
-    kprintf("Capslock ON detected!\n");
+    //kprintf("Capslock ON detected!\n");
     return NOCHAR;
   case LCTL:
     state |= INCTL;
@@ -131,16 +134,31 @@ unsigned int kbtoa( unsigned char code )
 
 void kbd_inthandler(void) {
     // read new byte from keyboard port
-    if (!( inb(0x64) & 0x1  )) {
+    if (!( inb(0x64) & 0x01  )) {
         return;
     }
     unsigned char scan_byte = inb(0x60);
     unsigned char ascii_key = kbtoa(scan_byte);
 
-
-    // make sure valid key was received and buffer isn't full
-    if (!ascii_key || (buff_idx == read_idx && size)) {
+    // make sure valid key was received
+    if (!ascii_key) {
         return;
+    }
+
+    // if there is a receiving process then write directly to its buffer
+    if (rp.p != NULL) {
+        write_to_app(ascii_key);
+        return;
+    }
+
+    // make sure buffer isn't full
+    if (buff_idx == read_idx && size) {
+        return;
+    }
+
+    // if echo is enabled, write the keyboard input to the screen
+    if (echo) {
+        kprintf("%c", ascii_key);
     }
 
     // if eof key was pressed then clear keyboard buffer
@@ -154,15 +172,56 @@ void kbd_inthandler(void) {
         return;
     }
 
+    // write pressed key to buffer
+    kbdbuffer[buff_idx] = ascii_key;
+    buff_idx = (buff_idx + 1) % MAX_BUFF_SIZE;
+    ++size;
+}
+
+void write_to_app(unsigned char ascii_key) {
+
     // if echo is enabled, write the keyboard input to the screen
     if (echo) {
         kprintf("%c", ascii_key);
     }
 
-    // write pressed key to buffer
-    kbdbuffer[buff_idx] = ascii_key;
-    buff_idx = (buff_idx + 1) % MAX_BUFF_SIZE;
-    ++size;
+    // if eof key was pressed then clear keyboard and application buffer
+    if (ascii_key == eof) {
+
+        // disable keyboard hardware
+        kbdclose();
+
+        *rp.buff = '\0';
+        rp.written = 0;
+        kbdread_complete();
+        return;
+    }
+
+    // write new char to buffer
+    *(rp.buff + rp.written) = ascii_key;
+    rp.written += 1;
+    //kprintf("%d\n",rp.written);
+
+    // return key pressed or buffer is full, return call
+    if (ascii_key == '\n' || rp.written == rp.bufflen) {
+        //*(rp.buff+rp.written) = '\0';
+        kbdread_complete();
+        return;
+    }
+}
+
+void kbdread_complete(void) {
+
+    // set process number bytes written as return value
+    rp.p->ret = rp.written;
+
+    //kprintf("%d\n", rp.written);
+
+    // unblock process
+    ready(rp.p);
+
+    // remove process from receiving_proc
+    rp.p = NULL;
 }
 
 void kbdopen(void) {
@@ -181,49 +240,48 @@ int kbdwrite(void* buff, int bufflen) {
     // write on keyboard is not supported
     return -1;
 }
-int kbdread(char* buff, int bufflen) {
-    kprintf("entering into keyboard read \n");
+int kbdread(char* buff, int bufflen, pcb* p) {
+    //kprintf("entering into keyboard read \n");
     int written = 0;
     // write any characters in keyboard buffer to application buffer
-        while (size) {
+    while (size) {
 
-            // stop reading bytes if we've reached bufflen limit
-            if (written >= bufflen) {
-                return written;
-            }
-
-            // EOF key pressed
-            if (kbdbuffer[read_idx] == eof) {
-                return 0;
-            }
-
-            *buff = kbdbuffer[read_idx];
-
-            ++buff;
-            read_idx = (read_idx + 1) % MAX_BUFF_SIZE;
-            --size;
-            ++written;
-
-            // return key pressed, return call
-            if (kbdbuffer[read_idx] == '\n') {
-                return written;
-            }
+        // stop reading bytes if we've reached bufflen limit
+        if (written >= bufflen) {
+            return written;
         }
-    return written;
 
-    // read 
+        // EOF key pressed
+        if (kbdbuffer[read_idx] == eof) {
+            return 0;
+        }
 
-    // buffer up to 4 characters
-    
+        *(buff+written) = kbdbuffer[read_idx];
 
-    // read into buffer until full or enter key
+        read_idx = (read_idx + 1) % MAX_BUFF_SIZE;
+        --size;
+        ++written;
+        //kprintf("%d\n", written);
 
-    // Ctrl-D detected, return eof
+        // return key pressed, return call
+        if (kbdbuffer[read_idx] == '\n') {
+            return written;
+        }
+    }
 
-    // signal detected
+    // save process info for adding directly from keyboard handler
+    rp.p = p;
+    rp.bufflen = bufflen;
+    rp.buff = buff;
+    rp.written = written;
 
-    // enter key (\n) detected
+    // clear keyboard buffer since it was all used up
+    buff_idx = 0;
+    read_idx = 0;
+    size = 0;
 
+    // return indicator that process did not reach a return condition
+    return -2;
 
 }
 
@@ -255,7 +313,7 @@ int kbdioctl(unsigned long command, va_list args) {
 
 void kbdinit(void) {
 
-    kprintf("created keyboard in devtab[0]");
+    //kprintf("created keyboard in devtab[0]");
     devtab[0].dvopen = &kbdopen;
     devtab[0].dvclose = &kbdclose;
     devtab[0].dvwrite = &kbdwrite;
