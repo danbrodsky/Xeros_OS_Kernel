@@ -29,11 +29,20 @@
 #define CTL_ECHO_OFF   55
 #define CTL_ECHO_ON    56
 
+typedef struct receiving_proc_s receiving_proc;
+
+struct receiving_proc_s {
+    pcb* p;
+    int written; // num bytes written to buffer already
+    int bufflen; // max num bytes to write
+    char* buff;  // application buffer to write to
+};
+
 void kbdopen(void);
 void kbdclose(void);
 
 int kbdwrite(void* buff, int bufflen);
-int kbdread(char* buff, int bufflen);
+int kbdread(char* buff, int bufflen, pcb* p);
 
 void kbdinit(void);
 
@@ -42,3 +51,5 @@ int kbdioctl(unsigned long command, va_list args);
 unsigned int kbtoa(unsigned char);
 
 void kbd_inthandler(void);
+void write_to_app(unsigned char);
+void kbdread_complete(void);

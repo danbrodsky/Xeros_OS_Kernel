@@ -54,7 +54,7 @@ int di_write(int fd, void* buff, int bufflen, pcb* p) {
     device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvwrite == NULL || fd >= MAX_DEV ) {
-        // device close call does not exist or no fd at this index in proc, return error
+        // device write call does not exist or no fd at this index in proc, return error
         return SYSERR;
     }
 
@@ -67,12 +67,12 @@ int di_read(int fd, void* buff, int bufflen, pcb* p) {
     device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvread == NULL || fd >= MAX_DEV ) {
-        // device close call does not exist or no fd at this index in proc, return error
+        // device read call does not exist or no fd at this index in proc, return error
         return SYSERR;
     }
 
     // call lower half function for read, and return the amount read received
-    return (curr_dev->dvread)( buff, bufflen);
+    return (curr_dev->dvread)( buff, bufflen, p);
 }
 
 int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p) {
@@ -80,7 +80,7 @@ int di_ioctl(int fd, unsigned long command, va_list args,  pcb* p) {
     device* curr_dev = p->fdt[fd];
 
     if ( curr_dev->dvioctl == NULL || fd >= MAX_DEV ) {
-        // device close call does not exist or no fd at this index in proc, return error
+        // device control call does not exist or no fd at this index in proc, return error
         return SYSERR;
     }
 

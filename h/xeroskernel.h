@@ -122,6 +122,7 @@ void           outb(unsigned int, unsigned char);
 #define MAX_DEV 32
 #define MAX_PROC_DEV 4
 
+typedef struct struct_pcb pcb;
 /* struct for device information */
 typedef struct struct_device device;
 
@@ -131,7 +132,7 @@ struct struct_device {
     int (*dvinit)(void);
     void (*dvopen)(void);
     void (*dvclose)(void);
-    int (*dvread)(char* buff, int bufflen);
+    int (*dvread)(char* buff, int bufflen, pcb* p);
     int (*dvwrite)(void* buff, int bufflen);
     int (*dvioctl)(unsigned long command, va_list args);
     int (*dvseek)(void);
@@ -145,7 +146,6 @@ struct struct_device {
     int (*dvoint)(void);
     void *dvioblk;
     int dvminor;
-    
 };
 
 /* table for storing device information */
@@ -153,7 +153,6 @@ device devtab[MAX_DEV];
 
 /* Structure to track the information associated with a single process */
 
-typedef struct struct_pcb pcb;
 struct struct_pcb {
   void        *esp;    /* Pointer to top of saved stack           */
   pcb         *next;   /* Next process in the list, if applicable */
