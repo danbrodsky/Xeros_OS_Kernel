@@ -3,6 +3,7 @@
 #include <i386.h>
 #include <xeroskernel.h>
 #include <xeroslib.h>
+#include <kbd.h>
 
 extern	int	entry( void );  /* start of kernel image, use &start    */
 extern	int	end( void );    /* end of kernel image, use &end        */
@@ -60,6 +61,7 @@ void initproc( void )				/* The beginning */
   contextinit();
   kprintf("context inited\n");
   
+  kbdinit();
 
   // WARNING THE FIRST PROCESS CREATED MUST BE THE IDLE PROCESS.
   // See comments in create.c
@@ -75,7 +77,7 @@ void initproc( void )				/* The beginning */
 
   create(idleproc, PROC_STACK);
   
-  create( test_syskill1, PROC_STACK );
+  create( root, PROC_STACK );
   kprintf("create inited\n");
   
   dispatch();
