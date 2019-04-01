@@ -3,6 +3,7 @@
 
 #include <xeroskernel.h>
 #include <xeroslib.h>
+#include <kbd.h>
 
 extern char	*maxaddr;
 void *handler_sig8(void *cntx);
@@ -449,4 +450,55 @@ void *handler_sig0(void *cntx){
     kprintf("signal 0 executed\n");
 }
 
+void shell(void) {
+    sysputs("shell opened");
+}
+
+
+void root(void) {
+
+
+    while(1){
+        sysputs("Welcome to Xeros - a not so experimental OS\n");
+        unsigned char username[20] = "";
+        unsigned char password[20] = "";
+
+        unsigned char output[20];
+        char* correct_username = "cs415\n";
+        char* correct_password = "EveryonegetsanA\n";
+
+        // open keyboard
+        int fd = sysopen(0);
+
+        // turn on keyboard echo
+        sysioctl(fd, CTL_ECHO_ON, 0);
+
+        sysputs("Username:\n");
+        sysread(fd, &username, 20);
+
+        /* sprintf(output, "buffer contents: %s\n", &username); */
+        /* sysputs(output); */
+
+        // turn off keyboard echo
+        sysioctl(fd, CTL_ECHO_OFF, 0);
+
+        sysputs("\nPassword:\n");
+        sysread(fd, &password, 20);
+
+        // close keyboard
+        fd = sysclose(0);
+
+        sprintf(output, "%s", username);
+        sysputs(output);
+
+        sprintf(output, "%s", password);
+        sysputs(output);
+        if (!strcmp(correct_username, username) && !strcmp(correct_password, password)) {
+            // create shell, wait for exit
+            int shell_pid = syscreate(&shell, PROC_STACK );
+
+            syswait(shell_pid);
+        }
+    }
+}
 
