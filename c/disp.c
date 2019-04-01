@@ -130,6 +130,12 @@ void     dispatch( void ) {
                 bufflen = va_arg(ap, int );
                 kprintf("file descriptor for read: %d\n", fd);
                 p->ret = di_read(fd, buff, bufflen, p);
+
+                // if unblock condition is not reached, block process
+                if (p->ret == -2) {
+                    p->state = STATE_BLOCKED;
+                    p = next();
+                }
                 break;
             case(SYS_IOCTL):
                 ap = (va_list) p->args;
