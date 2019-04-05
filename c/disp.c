@@ -54,7 +54,8 @@ void     dispatch( void ) {
                 p = next();
                 break;
             case (SYS_STOP):
-                p->state = STATE_STOPPED;
+                p->state = STATE_STOPPED; 
+                free_dependent_processes(p);
                 p = next();
                 break;
             case (SYS_KILL):
@@ -327,18 +328,19 @@ static int  kill(pcb *currP, int pid) {
   return 0;
 }
 
+extern long freemem;
 void free_dependent_processes(pcb *p){
     int i;
-    for( i = 1; i < MAX_PROC; i++ ) {
+    int a = 0;
+    for( i = 0; i < MAX_PROC; i++ ) {
         va_list ap = (va_list) proctab[i].args;
         int *c_pid = va_arg(ap, int*);
         int pid;
-        if(isValidAddress((unsigned int) c_pid)){
+        if(isValidAddress((unsigned int) c_pid) && c_pid > freemem){
             pid = *c_pid;
         } else{
             pid = (int) c_pid;
         }
-
         if( pid == p->pid && proctab[i].state == STATE_BLOCKED) {
             proctab[i].ret = -1;
             proctab[i].state = STATE_READY;
@@ -460,10 +462,10 @@ void sys_sigkill(pcb *p){
 pcb *sys_sigwait(pcb *p){
     va_list ap = (va_list) p->args;
     int pid = va_arg( ap, int);
-
     pcb *target_process = findPCB(pid);
     if(target_process == NULL || target_process->pid == 0){
         p->ret = SYSWAIT_INVALID_PID;
+        return p;
     }
     p->state = STATE_BLOCKED;
     p->ret = SYSWAIT_SUCCESS;

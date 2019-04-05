@@ -498,6 +498,7 @@ void shell(void) {
         }
         // exit shell
         else if (!strcmp(command, "ex\n") || !strcmp(command, "ex&\n")) {
+            sysputs("ex called");
             sysclose(fd);
             break;
         }
@@ -541,8 +542,13 @@ void root(void) {
         unsigned char password[20] = "";
 
         unsigned char output[20];
-        char* correct_username = "cs415\n";
-        char* correct_password = "EveryonegetsanA\n";
+        /* char* correct_username = "cs415\n"; */
+        /* char* correct_password = "EveryonegetsanA\n"; */
+
+        /* char* correct_username = "cs415\n"; */
+        /* char* correct_password = "EveryonegetsanA\n"; */
+        char* correct_username = "a\n";
+        char* correct_password = "a\n";
 
         // open keyboard
         int fd = sysopen(0);
@@ -573,8 +579,12 @@ void root(void) {
         if (!strcmp(correct_username, username) && !strcmp(correct_password, password)) {
             // create shell, wait for exit
             int shell_pid = syscreate(&shell, PROC_STACK );
-
+            sprintf(output, "%d\n", shell_pid);
+            sysputs(output);
+            sysputs("daniel is a vim god");
             syswait(shell_pid);
+            sysputs("return to root");
+
         }
     }
 }
