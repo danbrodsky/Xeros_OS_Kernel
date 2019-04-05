@@ -160,6 +160,12 @@ extern void dispatchinit( void ) {
 
   //bzero( proctab, sizeof( pcb ) * MAX_PROC );
   memset(proctab, 0, sizeof( pcb ) * MAX_PROC);
+  ps_states[0] = "STOPPED";
+  ps_states[1] = "READY";
+  ps_states[2] = "BLOCKED";
+  ps_states[3] = "WAITING";
+  ps_states[22] = "SLEEPING";
+  ps_states[23] = "RUNNING";
 }
 
 
@@ -187,6 +193,7 @@ extern pcb      *next( void ) {
     p = head;
 
     if( p ) {
+        p->state = STATE_RUNNING;
         head = p->next;
         if( !head ) {
             tail = NULL;
@@ -341,7 +348,7 @@ void free_dependent_processes(pcb *p){
         } else{
             pid = (int) c_pid;
         }
-        if( pid == p->pid && proctab[i].state == STATE_BLOCKED) {
+        if( pid == p->pid && proctab[i].state == STATE_WAITING) {
             proctab[i].ret = -1;
             proctab[i].state = STATE_READY;
             ready(&proctab[i]);
@@ -467,7 +474,7 @@ pcb *sys_sigwait(pcb *p){
         p->ret = SYSWAIT_INVALID_PID;
         return p;
     }
-    p->state = STATE_BLOCKED;
+    p->state = STATE_WAITING;
     p->ret = SYSWAIT_SUCCESS;
     return next();
 }

@@ -458,7 +458,10 @@ void a(void) {
 }
 
 void t(void) {
-    sysputs("bye");
+    while (1) {
+        sysputs("\nT\n");
+        syssleep(10000);
+    }
 }
 void shell(void) {
 
@@ -467,12 +470,13 @@ void shell(void) {
     // array for remembering process ids
     int proc_ids[MAX_PROC];
 
+    // open keyboard
+    int fd = sysopen(0);
+    // open keyboard
+    sysioctl(fd, CTL_ECHO_ON);
     while(1) {
-        // open keyboard
-        int fd = sysopen(0);
+        unsigned char output[20];
 
-        // open keyboard
-        sysioctl(fd, CTL_ECHO_ON);
 
         sysputs("> ");
 
@@ -482,7 +486,8 @@ void shell(void) {
         int background = 0;
 
         // check if & at end
-        if (*(command+written-1) == '&') {
+        if (*(command+written-2) == '&') {
+            sysputs("proc in background\n");
             background = 1;
         }
 
@@ -491,10 +496,16 @@ void shell(void) {
             sysclose(fd);
             break;
         }
-        // TODO: implement ps
         else if (!strcmp(command, "ps\n")) {
             // list active processes
-            sysputs("Name        Status        Duration\n");
+            sysputs("PID        Status        Duration\n");
+            processStatuses psTab;
+            int procs = sysgetcputimes(&psTab);
+
+            for(int j = 0; j <= procs; j++) {
+                sprintf(output, "%2d    %10d    %10d\n", psTab.pid[j], ps_states[psTab.status[j]], psTab.cpuTime[j]);
+                sysputs(output);
+            }
         }
         // exit shell
         else if (!strcmp(command, "ex\n") || !strcmp(command, "ex&\n")) {
@@ -504,17 +515,18 @@ void shell(void) {
         }
 
         // kill process
-        else if (!strncmp(command, "k\n", 2)) {
+        // TODO: FIX SYSKILL!!!
+        else if (!strncmp(command, "k ", 2)) {
             // call syskill on the target process
             // TODO: check if this is a proper signal number for syskill
 
-            int result = syskill( atoi(command + 2), 0);
+            int result = syskill( atoi(command + 1), 0);
             if (result != 0)
                 sysputs("No such process\n");
         }
-        else if (!strncmp(command, "k&\n", 3)) {
+        else if (!strncmp(command, "k& ", 3)) {
             // call syskill on the target process
-            int result = syskill( atoi(command + 3), 0);
+            int result = syskill( atoi(command + 2), 0);
             if (result != 0)
                 sysputs("No such process\n");
         }
@@ -525,9 +537,11 @@ void shell(void) {
             syswait(pid);
         }
         // TODO: implement t
-        else if (!strcmp(command, "t\n")) {
+        else if (!strcmp(command, "t\n") || !strcmp(command, "t&\n")) {
             int pid = syscreate(&t, PROC_STACK);
-            syswait(pid);
+            if (!background) {
+                syswait(pid);
+            }
         }
     }
 }
