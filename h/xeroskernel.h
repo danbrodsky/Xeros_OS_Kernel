@@ -62,6 +62,7 @@ void           outb(unsigned int, unsigned char);
    /* Number of milliseconds in a tick */
 #define MILLISECONDS_TICK 10        
 
+char* ps_states[30];
 
 /* Constants to track states that a process is in */
 #define STATE_STOPPED   0

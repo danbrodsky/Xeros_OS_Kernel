@@ -458,21 +458,47 @@ void a(void) {
 }
 
 void t(void) {
-    sysputs("bye");
+    while (1) {
+        sysputs("\nT\n");
+        syssleep(10000);
+    }
 }
 void shell(void) {
 
     // TODO: Get return to parent on child death working
+    int sig8  = 8;
+    int sig30 = 30;
+    int sig0  = 0;
+
+    void *handler;
+    int ret_val = syssighandler(sig8, &handler_sig8, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS1 fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig30, &handler_sig30, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS2 fail\n");
+        while(1);
+    }
+
+    ret_val = syssighandler(sig0, &handler_sig0, &handler);
+    if(ret_val != SIGHANDLER_SIGNAL_INSTALL_SUCCESS){
+        kprintf("test SIGHANDLER_SIGNAL_INSTALL_SUCCESS3 fail\n");
+        while(1);
+    }
 
     // array for remembering process ids
     int proc_ids[MAX_PROC];
 
+    // open keyboard
+    int fd = sysopen(0);
+    // open keyboard
+    sysioctl(fd, CTL_ECHO_ON);
     while(1) {
-        // open keyboard
-        int fd = sysopen(0);
+        unsigned char output[20];
 
-        // open keyboard
-        sysioctl(fd, CTL_ECHO_ON);
 
         sysputs("> ");
 
@@ -482,7 +508,8 @@ void shell(void) {
         int background = 0;
 
         // check if & at end
-        if (*(command+written-1) == '&') {
+        if (*(command+written-2) == '&') {
+            sysputs("proc in background\n");
             background = 1;
         }
 
@@ -491,10 +518,16 @@ void shell(void) {
             sysclose(fd);
             break;
         }
-        // TODO: implement ps
         else if (!strcmp(command, "ps\n")) {
             // list active processes
-            sysputs("Name        Status        Duration\n");
+            sysputs("PID        Status        Duration\n");
+            processStatuses psTab;
+            int procs = sysgetcputimes(&psTab);
+
+            for(int j = 0; j <= procs; j++) {
+                sprintf(output, "%2d    %10d    %10d\n", psTab.pid[j], ps_states[psTab.status[j]], psTab.cpuTime[j]);
+                sysputs(output);
+            }
         }
         // exit shell
         else if (!strcmp(command, "ex\n") || !strcmp(command, "ex&\n")) {
@@ -504,17 +537,17 @@ void shell(void) {
         }
 
         // kill process
-        else if (!strncmp(command, "k\n", 2)) {
+        // TODO: FIX SYSKILL!!!
+        else if (!strncmp(command, "k ", 2)) {
             // call syskill on the target process
             // TODO: check if this is a proper signal number for syskill
-
-            int result = syskill( atoi(command + 2), 0);
+            int result = syskill( atoi(command + 1), MAX_SIG-1);
             if (result != 0)
                 sysputs("No such process\n");
         }
-        else if (!strncmp(command, "k&\n", 3)) {
+        else if (!strncmp(command, "k& ", 3)) {
             // call syskill on the target process
-            int result = syskill( atoi(command + 3), 0);
+            int result = syskill( atoi(command + 2), MAX_SIG-1);
             if (result != 0)
                 sysputs("No such process\n");
         }
@@ -525,9 +558,11 @@ void shell(void) {
             syswait(pid);
         }
         // TODO: implement t
-        else if (!strcmp(command, "t\n")) {
+        else if (!strcmp(command, "t\n") || !strcmp(command, "t&\n")) {
             int pid = syscreate(&t, PROC_STACK);
-            syswait(pid);
+            if (!background) {
+                syswait(pid);
+            }
         }
     }
 }
@@ -545,10 +580,10 @@ void root(void) {
         /* char* correct_username = "cs415\n"; */
         /* char* correct_password = "EveryonegetsanA\n"; */
 
-        /* char* correct_username = "cs415\n"; */
-        /* char* correct_password = "EveryonegetsanA\n"; */
-        char* correct_username = "a\n";
-        char* correct_password = "a\n";
+        char* correct_username = "cs415\n"; 
+        char* correct_password = "EveryonegetsanA\n";
+        //char* correct_username = "a\n";
+        //char* correct_password = "a\n";
 
         // open keyboard
         int fd = sysopen(0);
@@ -556,7 +591,7 @@ void root(void) {
         // turn on keyboard echo
         sysioctl(fd, CTL_ECHO_ON, 0);
 
-        sysputs("Username:\n");
+        sysputs("Username:");
         sysread(fd, &username, 20);
 
         /* sprintf(output, "buffer contents: %s\n", &username); */
@@ -565,7 +600,7 @@ void root(void) {
         // turn off keyboard echo
         sysioctl(fd, CTL_ECHO_OFF, 0);
 
-        sysputs("\nPassword:\n");
+        sysputs("\nPassword:");
         sysread(fd, &password, 20);
 
         // close keyboard
@@ -579,12 +614,7 @@ void root(void) {
         if (!strcmp(correct_username, username) && !strcmp(correct_password, password)) {
             // create shell, wait for exit
             int shell_pid = syscreate(&shell, PROC_STACK );
-            sprintf(output, "%d\n", shell_pid);
-            sysputs(output);
-            sysputs("daniel is a vim god");
             syswait(shell_pid);
-            sysputs("return to root");
-
         }
     }
 }
