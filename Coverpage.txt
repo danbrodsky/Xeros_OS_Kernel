@@ -23,15 +23,14 @@ file.
 
 
 STUDENT  1
-Name :
-St. No:
-Unix Id :
-Email:
+Name : Daniel Brodsky
+St. No: 49375141
+Unix Id : c8z9a
+Email: danbrodsky@pm.me
 
 
 STUDENT  2
-Name :
-St. No:
-Unix Id :
-Email:
-
+Name : James Cho
+St. No: 50446160
+Unix Id : q1v0b
+Email: jcho7022@gmail.com
