@@ -465,7 +465,6 @@ void t(void) {
 }
 void shell(void) {
 
-    // TODO: Get return to parent on child death working
     int sig8  = 8;
     int sig30 = 30;
     int sig0  = 0;
@@ -494,7 +493,6 @@ void shell(void) {
 
     // open keyboard
     int fd = sysopen(0);
-    // open keyboard
     sysioctl(fd, CTL_ECHO_ON);
     while(1) {
         unsigned char output[20];
@@ -531,16 +529,13 @@ void shell(void) {
         }
         // exit shell
         else if (!strcmp(command, "ex\n") || !strcmp(command, "ex&\n")) {
-            sysputs("ex called");
             sysclose(fd);
             break;
         }
 
         // kill process
-        // TODO: FIX SYSKILL!!!
         else if (!strncmp(command, "k ", 2)) {
             // call syskill on the target process
-            // TODO: check if this is a proper signal number for syskill
             int result = syskill( atoi(command + 1), MAX_SIG-1);
             if (result != 0)
                 sysputs("No such process\n");
@@ -557,7 +552,6 @@ void shell(void) {
             int pid = syscreate(&a, PROC_STACK);
             syswait(pid);
         }
-        // TODO: implement t
         else if (!strcmp(command, "t\n") || !strcmp(command, "t&\n")) {
             int pid = syscreate(&t, PROC_STACK);
             if (!background) {
