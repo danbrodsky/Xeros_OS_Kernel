@@ -35,5 +35,124 @@ Tests:
 4. syssigwait() test case
 This test case is covered in test #1. View test 5 and 7 under test #1
 
+-------------------------------------
+5. sysopen() with invalid arguments
+Purpose: To ensure an error is given if a device index is passed to sysopen()
 
+Steps:
+1. create a process that calls sysopen(33)
+2. assert that a -1 is received, indicating an error occurred
 
+Output:
+> starting root proc
+> SYSOPEN
+> Error: sysopen failed
+-------------------------------------
+
+-------------------------------------
+6. syswrite() with invalid file descriptor
+Purpose: ensure that invalid device cannot be used when calling syswrite()
+
+Steps:
+1. add a print statement that prints "here" to di_write() after the call to the lower half function
+1. create a process that calls syswrite(33)
+2. assert that the print statement above is never reached
+
+Output:
+> starting root proc
+> SYSWRITE
+> Error: syswrite returned -1 (Since "here" not printed this error is because of the invalid fd)
+-------------------------------------
+
+-------------------------------------
+7. sysioctl() test for invalid commands
+Purpose: ensure that ioctl calls cannot be made on an invalid device
+
+Steps:
+1. create a process that calls sysioctl(33)
+2. assert that a -1 is received, indicating an error occurred
+
+Output:
+> starting root proc
+> SYSIOCTL
+> Error: sysioctl returned -1
+
+-------------------------------------
+
+-------------------------------------
+8. sysread() when there are more characters buffered in kernel than the read requests
+Purpose: ensure that sysread calls are limited by bufflen and use chars from the keyboard buffer
+
+Steps:
+1. create a process that opens the keyboard
+2. process should then sleep for 4 seconds and then call sysread for 2 characters
+3. while the process is asleep, type random values into the keyboard for 4 characters
+4. assert that the values in the buffer passed to kernel by sysread are the first 2 characters only
+5. call sysread again for 2 characters
+6. assert that the other chars in the keyboard buffer are given to the future sysread call
+
+Output:
+> starting root proc
+> SYSOPEN
+> SYSIOCTL
+> SYSSLEEP
+> "abcd" (random chars typed into the keyboard)
+> SYSREAD
+> Values in buff: ab
+> SYSREAD
+> Values in buff: cd
+
+-------------------------------------
+
+-------------------------------------
+9. sysread()
+Purpose: ensure that keyboard buffer is cleared if the eof key is pressed
+
+Steps:
+create a process that loops the following:
+1. opens the keyboard
+2. process calls ioctl and changes the eof key to SPACE (ascii value: 32)
+3. process should then sleep for 4 seconds and then call sysread for 4 characters
+4. while the process is asleep, type random values into the keyboard for 3 characters
+5. for the 4th character press SPACE
+6. assert that the buffer of the returned sysread contains no characters
+7. call sysread again for 2 characters
+8. input 2 characters
+9. assert that the buffer passed contains only those 2 characters
+
+Output:
+> starting root proc
+> SYSOPEN
+> SYSIOCTL
+> SYSSLEEP
+> "abc " (random chars typed into the keyboard + the eof key)
+> EOF key was pressed
+> "ef"
+> SYSREAD
+> Values in buff: ef
+
+-------------------------------------
+
+-------------------------------------
+10. sysread()
+Purpose: eof key is not registered if the keyboard buffer is already full
+
+Steps:
+create a process that loops the following:
+1. opens the keyboard
+2. process calls ioctl and changes the eof key to SPACE (ascii value: 32)
+3. process should then sleep for 4 seconds and then call sysread for 4 characters
+4. while the process is asleep, type random values into the keyboard for 4 characters
+5. press SPACE, then type 4 new characters in
+6. assert that the buffer of the returned sysread contains the original 4 characters
+
+Output:
+> starting root proc
+> SYSOPEN
+> SYSIOCTL
+> SYSSLEEP
+> "abcd efgh" (random chars typed into the keyboard + the eof key + ome more random characters)
+> SYSREAD
+> Values in buff: abcd
+
+-------------------------------------
