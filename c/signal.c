@@ -52,7 +52,7 @@ void signal(pcb *p){
     esp--;
     *esp = p->signal_table[signum];
 
-    // push return address TODO what address does this need to be set to
+    // push place holder return address
     esp--;
     *esp = NULL;
 
