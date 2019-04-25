@@ -64,7 +64,7 @@ unsigned char   code;
 unsigned int kbtoa( unsigned char code )
 {
   unsigned int    ch;
-  
+
   if (state & EXTENDED)
     return extchar(code);
   if (code & KEY_UP) {
@@ -84,11 +84,11 @@ unsigned int kbtoa( unsigned char code )
       state &= ~INMETA;
       break;
     }
-    
+
     return NOCHAR;
   }
-  
-  
+
+
   /* check for special keys */
   switch (code) {
   case LSHIFT:
@@ -110,9 +110,9 @@ unsigned int kbtoa( unsigned char code )
     state |= EXTENDED;
     return NOCHAR;
   }
-  
+
   ch = NOCHAR;
-  
+
   if (code < sizeof(kbcode)){
     if ( state & CAPSLOCK )
       ch = kbshift[code];
